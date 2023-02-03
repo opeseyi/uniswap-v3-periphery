@@ -84,6 +84,13 @@ contract SwapRouter is
     }
 
     /// @dev Performs a single exact input swap
+    // THis is the main function that perform the exact swap in exactInputSwap function
+    // @params amountIn This is the fixed amt of token A to be swapped.
+    // @params receipient THis is the destination address of the token B amt after swap
+    // @params sqrtPriceLimitX96 this value can be used to set the limit for the price the swap will push the pool to,
+    //  which can help protect against price impact or for setting up logic in a variety of price-relevant mechanisms.(for testing this can be set to zero)
+    // @params data contains 1) The path is a sequence of (tokenAddress - fee - tokenAddress), which are the variables needed to compute each pool contract
+    // address in our sequence of swaps   2)payer the msg.sender(not sure)
     function exactInputInternal(
         uint256 amountIn,
         address recipient,
@@ -95,7 +102,17 @@ contract SwapRouter is
 
         (address tokenIn, address tokenOut, uint24 fee) = data.path.decodeFirstPool();
 
+        // This indicate the direction of the swap
         bool zeroForOne = tokenIn < tokenOut;
+
+        // This function performs the swap
+        // Note: the "swap" is from the v3-core
+        // @param receipient: THis is the destination address of the token B amt after swap
+        // @param zeroForOne: The direction of the swap, true for token0 to token1, false for token1 to token0
+        // @param amountSpecified The amount of the swap, which implicitly configures the swap as exact input (positive), or exact output (negative)
+        // @param data same as described above
+        // @return amount0 The delta of the balance of token0 of the pool, exact when negative, minimum when positive
+        // @return amount1 The delta of the balance of token1 of the pool, exact when negative, minimum when positive
 
         (int256 amount0, int256 amount1) =
             getPool(tokenIn, tokenOut, fee).swap(
@@ -112,6 +129,8 @@ contract SwapRouter is
     }
 
     /// @inheritdoc ISwapRouter
+    // This swap a fixed amont of token A to any max amt of token B
+    // It calls an internal function called "exactInputInternal" (i think it was written like this to reduce gas cost)
     function exactInputSingle(ExactInputSingleParams calldata params)
         external
         payable
@@ -129,6 +148,7 @@ contract SwapRouter is
     }
 
     /// @inheritdoc ISwapRouter
+    // This swap a fixed amont of token A to any max amt of token B and
     function exactInput(ExactInputParams memory params)
         external
         payable
