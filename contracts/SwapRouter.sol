@@ -131,6 +131,7 @@ contract SwapRouter is
     /// @inheritdoc ISwapRouter
     // This swap a fixed amont of token A to any max amt of token B
     // It calls an internal function called "exactInputInternal" (i think it was written like this to reduce gas cost)
+    /// @return amountOut The amount of the received token
     function exactInputSingle(ExactInputSingleParams calldata params)
         external
         payable
@@ -148,7 +149,9 @@ contract SwapRouter is
     }
 
     /// @inheritdoc ISwapRouter
-    // This swap a fixed amont of token A to any max amt of token B and
+    // This swap a fixed amont of token A to any max amt of token B and  can include an arbitrary number of intermediary swaps.
+    // i.e to swap eth to DAI. eth=>weth9=>DAI
+    // @return amountOut The amount of the received token
     function exactInput(ExactInputParams memory params)
         external
         payable
@@ -186,6 +189,14 @@ contract SwapRouter is
     }
 
     /// @dev Performs a single exact output swap
+    // THis is the main function that perform the exact swap in exactOutput and exactOutputSingle function
+    // @params amountOut This is the fixed amt of token B the receipient expect to receive.
+    // @params receipient THis is the destination address of the token B amt after swap
+    // @params sqrtPriceLimitX96 this value can be used to set the limit for the price the swap will push the pool to,
+    //  which can help protect against price impact or for setting up logic in a variety of price-relevant mechanisms.(for testing this can be set to zero)
+    // @params data contains 1) The path is a sequence of (tokenAddress - fee - tokenAddress), which are the variables needed to compute each pool contract
+    // address in our sequence of swaps   2)payer the msg.sender(not sure)
+    // @return amountIn The amount of the input token
     function exactOutputInternal(
         uint256 amountOut,
         address recipient,
@@ -197,7 +208,17 @@ contract SwapRouter is
 
         (address tokenOut, address tokenIn, uint24 fee) = data.path.decodeFirstPool();
 
+        // This indicate the direction of the swap
         bool zeroForOne = tokenIn < tokenOut;
+
+        // This function performs the swap
+        // Note: the "swap" is from the v3-core
+        // @param receipient: THis is the destination address of the token B amt after swap
+        // @param zeroForOne: The direction of the swap, true for token0 to token1, false for token1 to token0
+        // @param amountSpecified The amount of the swap, which implicitly configures the swap as exact input (positive), or exact output (negative)
+        // @param data same as described above
+        // @return amount0 The delta of the balance of token0 of the pool, exact when negative, minimum when positive
+        // @return amount1 The delta of the balance of token1 of the pool, exact when negative, minimum when positive
 
         (int256 amount0Delta, int256 amount1Delta) =
             getPool(tokenIn, tokenOut, fee).swap(
@@ -220,6 +241,9 @@ contract SwapRouter is
     }
 
     /// @inheritdoc ISwapRouter
+    // This swap a amont of token A to a fixed amt of token B
+    // It calls an internal function called "exactOutputInternal" (i think it was written like this to reduce gas cost)
+    // @return amountIn The amount of the input token
     function exactOutputSingle(ExactOutputSingleParams calldata params)
         external
         payable
@@ -241,6 +265,9 @@ contract SwapRouter is
     }
 
     /// @inheritdoc ISwapRouter
+    // This swap a amont of token A to a fixed amt of token B and  can include an arbitrary number of intermediary swaps.
+    // i.e to swap eth to DAI. eth=>weth9=>DAI
+    // @return amountIn The amount of the input token
     function exactOutput(ExactOutputParams calldata params)
         external
         payable
